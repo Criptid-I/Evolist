@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Evolist</title>
+  <style>
+    /* ── RESET & TOKENS ─────────────────────────────────────────── */
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box }
+    :root {
+      --primary:#667eea; --primary-dark:#5a67d8; --secondary:#764ba2;
+      --success:#48bb78; --danger:#c53030; --warning:#ed8936;
+      --text-dark:#2d3748; --text-medium:#4a5568; --text-light:#718096;
+      --bg-light:#f7fafc; --bg-lighter:#edf2f7; --border:#e2e8f0;
+      --border-dark:#cbd5e0; --white:#ffffff;
+      --shadow:0 10px 30px rgba(0,0,0,.2); --shadow-sm:0 2px 8px rgba(0,0,0,.1)
+    }
+    body {
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+      background:linear-gradient(135deg,var(--primary) 0%,var(--secondary) 100%);
+      min-height:100vh; padding:20px; line-height:1.6
+    }
+    .container { max-width:1400px; margin:0 auto; padding-bottom:80px }
+    /* ── HEADER ─────────────────────────────────────────────────── */
+    .header { text-align:center; margin-bottom:30px; color:var(--white) }
+    .header h1 { font-size:clamp(32px,5vw,48px); font-weight:300; margin-bottom:10px }
+    .header p  { font-size:clamp(14px,3vw,18px); opacity:.9 }
+    /* ── CONTROLS ───────────────────────────────────────────────── */
+    .controls { background:var(--white); border-radius:16px; padding:20px; margin-bottom:20px; box-shadow:var(--shadow) }
+    .view-selector { display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; justify-content:center }
+    .view-btn { padding:12px 20px; border:none; border-radius:10px; background:var(--bg-light); color:var(--text-dark); cursor:pointer; font-size:15px; font-weight:600; transition:all .3s }
+    .view-btn:hover { background:var(--bg-lighter); transform:translateY(-2px) }
+    .view-btn.active { background:var(--primary); color:var(--white) }
+    .backup-container { display:flex; gap:10px; justify-content:center; margin-bottom:20px; flex-wrap:wrap; align-items:center }
+    .backup-btn { padding:8px 16px; border:1px solid var(--border); border-radius:8px; background:var(--white); color:var(--text-medium); cursor:pointer; font-size:13px; font-weight:600; transition:all .2s }
+    .backup-btn:hover { background:var(--bg-light); border-color:var(--primary); color:var(--primary) }
+    .navigation { display:flex; justify-content:center; align-items:center; gap:15px; flex-wrap:wrap }
+    .nav-btn { padding:10px 15px; border:none; border-radius:10px; background:var(--bg-light); cursor:pointer; font-size:24px; transition:all .3s; min-width:50px }
+    .nav-btn:hover { background:var(--bg-lighter); transform:scale(1.1) }
+    .current-date { font-size:clamp(16px,3vw,20px); font-weight:600; color:var(--text-dark); min-width:200px; text-align:center; padding:0 10px }
+    .today-btn { padding:10px 24px; border:none; border-radius:10px; background:var(--primary); color:var(--white); cursor:pointer; font-weight:600; transition:all .3s }
+    .today-btn:hover { background:var(--primary-dark); transform:translateY(-2px) }
+    /* ── MAIN CONTENT ───────────────────────────────────────────── */
+    .main-content { background:var(--white); border-radius:16px; padding:20px; box-shadow:var(--shadow); min-height:400px }
+    /* ── DAILY ──────────────────────────────────────────────────── */
+    .daily-grid { display:grid; grid-template-columns:2fr 1fr; gap:20px }
+    .daily-stats { background:linear-gradient(135deg,var(--primary),var(--secondary)); color:var(--white); padding:20px; border-radius:12px; margin-bottom:20px; text-align:center }
+    .daily-stats h3 { font-size:16px; font-weight:500; margin-bottom:10px; opacity:.9 }
+    .daily-percentage { font-size:48px; font-weight:700; margin-bottom:5px }
+    .daily-count { font-size:14px; opacity:.8 }
+    .category-section { background:var(--bg-light); border-radius:12px; margin-bottom:20px; overflow:hidden }
+    .category-header { padding:15px 20px; color:var(--white); font-weight:600; font-size:18px; display:flex; justify-content:space-between; align-items:center }
+    .category-percentage { font-size:14px; opacity:.9 }
+    .habit-list { padding:15px }
+    .habit-row { display:flex; align-items:center; gap:15px; padding:15px; background:var(--white); border-radius:10px; margin-bottom:10px; transition:all .2s }
+    .habit-row:hover { transform:translateX(5px); box-shadow:var(--shadow-sm) }
+    .habit-checkbox { width:36px; height:36px; min-width:36px; border:3px solid var(--border-dark); border-radius:8px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .2s }
+    .habit-checkbox.checked { background:var(--success); border-color:var(--success) }
+    .habit-checkbox.checked::after { content:'✓'; color:var(--white); font-weight:bold; font-size:20px }
+    .habit-emoji { font-size:32px; line-height:1 }
+    .habit-info { flex:1 }
+    .habit-title { font-weight:600; color:var(--text-dark); font-size:16px }
+    .habit-streak { display:inline-block; background:#fed7d7; color:var(--danger); padding:4px 12px; border-radius:12px; font-size:12px; font-weight:600; margin-top:5px }
+    /* ── COUNTER ────────────────────────────────────────────────── */
+    .counter-section { display:flex; flex-direction:column; gap:6px; flex:1 }
+    .counter-bar-wrap { height:8px; background:var(--border); border-radius:4px; overflow:hidden }
+    .counter-bar-fill { height:100%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .3s }
+    .counter-label { font-size:12px; color:var(--text-light); font-weight:600 }
+    .counter-buttons { display:flex; gap:6px; flex-wrap:wrap; align-items:center }
+    .counter-btn  { padding:5px 10px; border:1px solid var(--border); border-radius:6px; background:var(--white); cursor:pointer; font-size:12px; font-weight:600; transition:all .2s }
+    .counter-btn:hover  { background:var(--primary); color:var(--white); border-color:var(--primary) }
+    .counter-minus { padding:5px 10px; border:1px solid #fed7d7; border-radius:6px; background:var(--white); cursor:pointer; font-size:12px; font-weight:600; color:var(--danger); transition:all .2s }
+    .counter-minus:hover { background:#fed7d7 }
+    /* ── NOTE BOX ───────────────────────────────────────────────── */
+    .note-box { background:var(--bg-light); border-radius:12px; padding:20px; height:fit-content }
+    .note-box h3 { margin-bottom:15px; color:var(--text-dark) }
+    .note-textarea { width:100%; min-height:200px; padding:15px; border:2px solid var(--border); border-radius:10px; font-family:inherit; font-size:14px; resize:vertical }
+    .note-textarea:focus { outline:none; border-color:var(--primary) }
+    .save-btn { margin-top:10px; width:100%; padding:12px; border:none; border-radius:10px; background:var(--primary); color:var(--white); font-weight:600; cursor:pointer; transition:all .2s }
+    .save-btn:hover { background:var(--primary-dark) }
+    /* ── WEEKLY ─────────────────────────────────────────────────── */
+    .weekly-container { overflow-x:auto }
+    .weekly-grid { display:grid; grid-template-columns:200px repeat(7,1fr); gap:1px; background:var(--border); border:1px solid var(--border); min-width:900px }
+    .weekly-header { background:var(--text-dark); color:var(--white); padding:15px 10px; text-align:center; font-weight:600; font-size:14px }
+    .weekly-habit-name { background:var(--bg-light); padding:15px; font-weight:600; color:var(--text-dark); display:flex; align-items:center; gap:10px }
+    .weekly-cell { background:var(--white); padding:15px; min-height:60px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .2s }
+    .weekly-cell:hover { background:var(--bg-light) }
+    .weekly-checkbox { width:32px; height:32px; border:2px solid var(--border-dark); border-radius:6px; display:flex; align-items:center; justify-content:center }
+    .weekly-checkbox.checked { background:var(--success); border-color:var(--success) }
+    .weekly-checkbox.checked::after { content:'✓'; color:var(--white); font-weight:bold; font-size:18px }
+    .weekly-stats { background:var(--bg-light); padding:20px; border-radius:12px; margin-bottom:20px; display:flex; justify-content:space-around; flex-wrap:wrap; gap:15px }
+    .weekly-stat-item { text-align:center }
+    .weekly-stat-label { font-size:12px; color:var(--text-light); margin-bottom:5px }
+    .weekly-stat-value { font-size:28px; font-weight:700; color:var(--text-dark) }
+    /* ── MONTHLY ────────────────────────────────────────────────── */
+    .calendar { overflow-x:auto }
+    .calendar-stats { background:var(--bg-light); padding:20px; border-radius:12px; margin-bottom:20px; display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:15px }
+    .calendar-stat-box { text-align:center; padding:15px; background:var(--white); border-radius:10px }
+    .calendar-stat-label { font-size:12px; color:var(--text-light); margin-bottom:8px }
+    .calendar-stat-value { font-size:32px; font-weight:700; color:var(--text-dark) }
+    .calendar-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; background:var(--border); border:2px solid var(--border); min-width:700px }
+    .calendar-header { background:var(--text-dark); color:var(--white); padding:15px; text-align:center; font-weight:600 }
+    .calendar-cell { background:var(--white); padding:10px; min-height:150px; position:relative }
+    .calendar-cell.other-month { background:var(--bg-light); opacity:.5 }
+    .cell-date { font-weight:700; color:var(--text-dark); margin-bottom:5px }
+    .cell-percentage { font-size:11px; font-weight:700; color:var(--primary); margin-bottom:8px }
+    .cell-note { font-size:11px; color:var(--text-light); font-style:italic; margin-bottom:8px; max-height:30px; overflow:hidden }
+    .cell-habits { display:grid; grid-template-columns:repeat(auto-fill,minmax(28px,1fr)); gap:3px }
+    .mini-habit { width:28px; height:28px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:16px; cursor:pointer; transition:all .2s }
+    .mini-habit.done  { background:var(--success) }
+    .mini-habit.undone{ background:var(--border); opacity:.6 }
+    .mini-habit:hover { transform:scale(1.15) }
+    /* ── STATS / YEARLY ─────────────────────────────────────────── */
+    .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:20px }
+    .stat-card { background:var(--bg-light); border-radius:12px; padding:20px }
+    .stat-card-header { display:flex; align-items:center; gap:12px; margin-bottom:15px }
+    .stat-emoji { font-size:32px }
+    .stat-name { font-weight:600; color:var(--text-dark); font-size:18px; flex:1 }
+    .progress-bar { width:100%; height:10px; background:var(--border); border-radius:5px; overflow:hidden; margin-bottom:10px }
+    .progress-fill { height:100%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .5s }
+    .progress-label { font-size:14px; color:var(--text-light); margin-bottom:15px }
+    .months-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(70px,1fr)); gap:10px }
+    .month-box { background:var(--white); padding:12px 8px; border-radius:8px; text-align:center }
+    .month-name { font-size:11px; color:var(--text-light); margin-bottom:5px }
+    .month-percent { font-size:20px; font-weight:700; color:var(--text-dark) }
+    .yearly-title { font-size:28px; font-weight:600; color:var(--text-dark); margin-bottom:30px; text-align:center }
+    /* ── FAB & MODAL ────────────────────────────────────────────── */
+    .fab { position:fixed; bottom:30px; right:30px; width:60px; height:60px; border-radius:50%; background:linear-gradient(135deg,var(--primary),var(--secondary)); color:var(--white); border:none; font-size:32px; cursor:pointer; box-shadow:var(--shadow); transition:all .3s; display:flex; align-items:center; justify-content:center; z-index:999 }
+    .fab:hover { transform:scale(1.1) rotate(90deg) }
+    .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.6); justify-content:center; align-items:center; z-index:1000; padding:20px }
+    .modal.show { display:flex }
+    .modal-box { background:var(--white); border-radius:16px; padding:30px; max-width:500px; width:100%; max-height:90vh; overflow-y:auto }
+    .modal-title { font-size:24px; font-weight:600; margin-bottom:20px; color:var(--text-dark) }
+    .form-field { margin-bottom:20px }
+    .form-field label { display:block; margin-bottom:8px; font-weight:600; color:var(--text-medium) }
+    .form-field input, .form-field select { width:100%; padding:12px; border:2px solid var(--border); border-radius:10px; font-size:15px; font-family:inherit }
+    .form-field input:focus, .form-field select:focus { outline:none; border-color:var(--primary) }
+    .counter-toggle { display:flex; align-items:center; gap:12px; padding:14px; background:var(--bg-light); border-radius:10px; cursor:pointer; margin-bottom:20px }
+    .counter-toggle input[type=checkbox] { width:20px; height:20px; cursor:pointer }
+    .counter-toggle label { font-weight:600; color:var(--text-medium); cursor:pointer; font-size:15px }
+    .counter-fields { background:var(--bg-lighter); border-radius:10px; padding:15px; margin-bottom:20px }
+    .counter-fields.hidden { display:none }
+    .modal-buttons { display:flex; gap:10px; margin-top:30px }
+    .modal-btn { flex:1; padding:14px; border:none; border-radius:10px; font-weight:600; cursor:pointer; transition:all .2s; font-size:16px }
+    .btn-primary  { background:var(--primary); color:var(--white) }
+    .btn-primary:hover { background:var(--primary-dark) }
+    .btn-secondary{ background:var(--border); color:var(--text-medium) }
+    .btn-secondary:hover { background:var(--border-dark) }
+    .delete-btn { width:100%; margin-top:10px; padding:12px; border:2px solid #fed7d7; border-radius:10px; background:var(--white); color:var(--danger); font-weight:600; cursor:pointer; transition:all .2s }
+    .delete-btn:hover { background:#fed7d7 }
+    .hidden { display:none }
+    @media(max-width:768px) {
+      body { padding:10px }
+      .daily-grid { grid-template-columns:1fr }
+      .calendar-grid { min-width:600px }
+      .months-grid { grid-template-columns:repeat(3,1fr) }
+      .weekly-grid { grid-template-columns:150px repeat(7,1fr) }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🎯 EVOLIST</h1>
+    <p>Evoluciona un hábito a la vez</p>
+  </div>
+  <div class="controls">
+    <div class="view-selector">
+      <button class="view-btn active" data-view="daily">📅 Diario</button>
+      <button class="view-btn" data-view="weekly">📊 Semanal</button>
+      <button class="view-btn" data-view="monthly">📆 Mensual</button>
+      <button class="view-btn" data-view="yearly">📈 Anual</button>
+      <button class="view-btn" data-view="stats">📉 Estadísticas</button>
+    </div>
+    <div class="backup-container">
+      <button class="backup-btn" id="exportBtn">📥 Exportar</button>
+      <button class="backup-btn" id="importTrigger">📤 Importar</button>
+      <button class="backup-btn" id="syncBtn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;">🔄 Sincronizar</button>
+      <span id="authStatus" style="font-size:12px;color:#666;margin-left:10px"></span>
+      <input type="file" id="importInput" class="hidden" accept=".json">
+    </div>
+    <div class="navigation">
+      <button class="nav-btn" id="navPrev">←</button>
+      <div class="current-date" id="dateDisplay"></div>
+      <button class="nav-btn" id="navNext">→</button>
+      <button class="today-btn" id="todayBtn">Hoy</button>
+    </div>
+  </div>
+  <div class="main-content" id="mainContent"></div>
+</div>
+
+<button class="fab" id="addHabitFab">+</button>
+
+<div class="modal" id="habitModal">
+  <div class="modal-box">
+    <h2 class="modal-title" id="modalTitle">Agregar Hábito</h2>
+    <div class="form-field">
+      <label for="habitName">Nombre del Hábito</label>
+      <input type="text" id="habitName" placeholder="ej. Meditar 10 minutos" maxlength="50">
+    </div>
+    <div class="form-field">
+      <label for="habitIcon">Icono (emoji)</label>
+      <input type="text" id="habitIcon" placeholder="🧘" maxlength="2">
+    </div>
+    <div class="form-field">
+      <label for="habitCategory">Categoría</label>
+      <select id="habitCategory">
+        <option value="health">Salud</option>
+        <option value="work">Trabajo</option>
+        <option value="learning">Aprendizaje</option>
+        <option value="creative">Creatividad</option>
+        <option value="personal">Personal</option>
+        <option value="fitness">Ejercicio</option>
+      </select>
+    </div>
+    <div class="counter-toggle">
+      <input type="checkbox" id="isCounter">
+      <label for="isCounter">🔢 Hábito con contador (ej: vasos de agua, dominadas)</label>
+    </div>
+    <div class="counter-fields hidden" id="counterFields">
+      <div class="form-field">
+        <label for="counterGoal">Meta diaria</label>
+        <input type="number" id="counterGoal" placeholder="ej. 10" min="1" max="9999">
+      </div>
+      <div class="form-field">
+        <label for="counterUnit">Unidad</label>
+        <input type="text" id="counterUnit" placeholder="ej. repeticiones, litros, páginas" maxlength="20">
+      </div>
+      <div class="form-field">
+        <label for="counterButtons">Botones rápidos (separados por coma)</label>
+        <input type="text" id="counterButtons" placeholder="ej. 1,5,10" maxlength="30">
+      </div>
+    </div>
+    <div class="modal-buttons">
+      <button class="modal-btn btn-secondary" id="modalCancelBtn">Cancelar</button>
+      <button class="modal-btn btn-primary"   id="modalSaveBtn">Guardar</button>
+    </div>
+    <button class="delete-btn hidden" id="deleteBtn">🗑️ Eliminar Hábito</button>
+  </div>
+</div>
+
+<script>
+/**
+ * ─────────────────────────────────────────────────────────────────
+ *  DateService — Gestión centralizada de fechas (anti time-skew)
+ *
+ *  PROBLEMA ORIGINAL: `new Date()` estaba disperso por todo el código.
+ *  Cerca de la medianoche, `.toISOString()` convierte la hora local a UTC
+ *  y puede retornar el día SIGUIENTE.
+ *  SOLUCIÓN: Capturar la fecha local del dispositivo UNA SOLA VEZ al
+ *  arrancar la sesión. Todas las operaciones usan esta fecha como ancla.
+ * ─────────────────────────────────────────────────────────────────
+ * @namespace DateService
+ */
+const DateService = (() => {
+  /**
+   * Convierte un objeto Date a string YYYY-MM-DD usando la hora LOCAL
+   * del dispositivo, evitando el bug de UTC de `.toISOString()`.
+   * @param {Date} date
+   * @returns {string} YYYY-MM-DD
+   */
+  const toLocalDateKey = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  /**
+   * Parsea un string YYYY-MM-DD a un Date local (sin ajuste de zona horaria).
+   * @param {string} dateStr — YYYY-MM-DD
+   * @returns {Date}
+   */
+  const fromDateKey = (dateStr) => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+
+  /** Fecha "hoy" capturada una sola vez al inicio de la sesión. */
+  const SESSION_TODAY = toLocalDateKey(new Date());
+
+  return { toLocalDateKey, fromDateKey, SESSION_TODAY };
+})();
+
+
+/**
+ * ─────────────────────────────────────────────────────────────────
+ *  HabitService — Capa de datos / lógica de negocio
+ *
+ *  Responsabilidades:
+ *    · Persistencia en localStorage (capa local)
+ *    · CRUD de hábitos
+ *    · Toggle/contador de completions
+ *    · Cálculo de streaks y tasas
+ *    · Serialización para exportar/importar
+ *
+ *  NO sabe nada del DOM. NO llama a `render()`.
+ * ─────────────────────────────────────────────────────────────────
+ * @namespace HabitService
+ */
+const HabitService = (() => {
+  // ── Constantes ────────────────────────────────────────────────
+  const STORAGE_KEY = 'habitTrackerData_v3';
+  const SCHEMA_VERSION = 3;
+
+  // ── Estado en memoria ─────────────────────────────────────────
+  /** @type {{ habits: Habit[], completions: Record<string,boolean>, counters: Record<string,number>, notes: Record<string,string> }} */
+  let _state = {
+    habits: [
+      { id:1,  name:'Tratamiento cara',    icon:'😊', category:'health',    isCounter:false },
+      { id:2,  name:'Rosetta',             icon:'🗣️', category:'learning',  isCounter:false },
+      { id:3,  name:'Music',               icon:'🎵', category:'creative',  isCounter:false },
+      { id:4,  name:'Act. física',         icon:'🏃', category:'fitness',   isCounter:false },
+      { id:5,  name:'Meditar',             icon:'🧘', category:'health',    isCounter:false },
+      { id:6,  name:'Estudiar cripto',     icon:'💰', category:'learning',  isCounter:false },
+      { id:7,  name:'Estudiar marketing',  icon:'📊', category:'work',      isCounter:false },
+      { id:8,  name:'Journaling',          icon:'✍️', category:'personal',  isCounter:false },
+      { id:9,  name:'Reading',             icon:'📚', category:'learning',  isCounter:false },
+      { id:10, name:'Checking emails',     icon:'📧', category:'work',      isCounter:false },
+      { id:11, name:'My website',          icon:'💻', category:'work',      isCounter:false },
+      { id:12, name:'Violín',              icon:'🎻', category:'creative',  isCounter:false },
+      { id:13, name:'10 Dominadas',        icon:'💪', category:'fitness',   isCounter:true,  goal:10, unit:'repeticiones', quickBtns:[1,5,10] },
+      { id:14, name:'2 lts Agua',          icon:'💧', category:'health',    isCounter:true,  goal:2,  unit:'litros',        quickBtns:[0.25,0.5,1] },
+      { id:15, name:'Planear mañana',      icon:'📅', category:'personal',  isCounter:false },
+    ],
+    completions: {},
+    counters: {},
+    notes: {},
+  };
+
+  // ── Persistencia ──────────────────────────────────────────────
+
+  /**
+   * Guarda el estado en localStorage.
+   * @returns {void}
+   */
+  const save = () => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        habits:      _state.habits,
+        completions: _state.completions,
+        counters:    _state.counters,
+        notes:       _state.notes,
+        version:     SCHEMA_VERSION,
+        lastSaved:   new Date().toISOString(), // timestamp de auditoría, no operativo
+      }));
+    } catch (err) {
+      console.error('[HabitService] Error al guardar en localStorage:', err);
+    }
+  };
+
+  /**
+   * Carga el estado desde localStorage.
+   * @returns {void}
+   */
+  const load = () => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed.habits) && parsed.habits.length > 0)
+        _state.habits = parsed.habits;
+      if (parsed.completions) _state.completions = parsed.completions;
+      if (parsed.counters)    _state.counters    = parsed.counters;
+      if (parsed.notes)       _state.notes       = parsed.notes;
+    } catch (err) {
+      console.error('[HabitService] Error al cargar desde localStorage:', err);
+    }
+  };
+
+  // ── Helpers internos ──────────────────────────────────────────
+
+  /**
+   * Genera la clave compuesta `habitId-YYYY-MM-DD`.
+   * @param {number} habitId
+   * @param {string} dateKey — YYYY-MM-DD
+   * @returns {string}
+   */
+  const composeKey = (habitId, dateKey) => `${habitId}-${dateKey}`;
+
+  // ── API pública ───────────────────────────────────────────────
+
+  /** Getters inmutables para lectura desde la UI. */
+  const getHabits      = () => _state.habits;
+  const getCompletions = () => _state.completions;
+  const getCounters    = () => _state.counters;
+  const getNotes       = () => _state.notes;
+  const getState       = () => _state; // referencia de sólo lectura para sync
+
+  /**
+   * Reemplaza el estado completo (usado por importación/sincronización).
+   * @param {{ habits, completions, counters, notes }} newState
+   */
+  const setState = (newState) => {
+    _state.habits      = Array.isArray(newState.habits)      ? newState.habits      : _state.habits;
+    _state.completions = newState.completions != null         ? newState.completions : _state.completions;
+    _state.counters    = newState.counters    != null         ? newState.counters    : _state.counters;
+    _state.notes       = newState.notes       != null         ? newState.notes       : _state.notes;
+    save();
+  };
+
+  // ── Hábitos ───────────────────────────────────────────────────
+
+  /**
+   * Agrega un nuevo hábito.
+   * @param {{ name:string, icon:string, category:string, isCounter:boolean, goal?:number, unit?:string, quickBtns?:number[] }} habitData
+   * @returns {Habit}
+   */
+  const addHabit = (habitData) => {
+    const habit = { id: Date.now(), ...habitData };
+    _state.habits.push(habit);
+    save();
+    return habit;
+  };
+
+  /**
+   * Actualiza un hábito existente.
+   * @param {number} id
+   * @param {Partial<Habit>} changes
+   * @returns {boolean}
+   */
+  const updateHabit = (id, changes) => {
+    const idx = _state.habits.findIndex(h => h.id === id);
+    if (idx === -1) return false;
+    _state.habits[idx] = { ..._state.habits[idx], ...changes };
+    save();
+    return true;
+  };
+
+  /**
+   * Elimina un hábito y toda su historia asociada.
+   * @param {number} id
+   * @returns {boolean}
+   */
+  const deleteHabit = (id) => {
+    _state.habits = _state.habits.filter(h => h.id !== id);
+    const prefix = `${id}-`;
+    Object.keys(_state.completions).forEach(k => { if (k.startsWith(prefix)) delete _state.completions[k]; });
+    Object.keys(_state.counters).forEach(k => { if (k.startsWith(prefix)) delete _state.counters[k]; });
+    save();
+    return true;
+  };
+
+  // ── Completions ───────────────────────────────────────────────
+
+  /**
+   * Alterna el estado de completado de un hábito para una fecha dada.
+   * @param {number} habitId
+   * @param {string} dateKey — YYYY-MM-DD (local)
+   * @returns {boolean} — nuevo estado
+   */
+  const toggleHabit = (habitId, dateKey) => {
+    const k = composeKey(habitId, dateKey);
+    _state.completions[k] = !_state.completions[k];
+    save();
+    return _state.completions[k];
+  };
+
+  /**
+   * Suma una cantidad al contador de un hábito y actualiza el completion automáticamente.
+   * @param {number} habitId
+   * @param {number} amount
+   * @param {string} dateKey — YYYY-MM-DD (local)
+   */
+  const addToCounter = (habitId, amount, dateKey) => {
+    const k = composeKey(habitId, dateKey);
+    _state.counters[k] = (_state.counters[k] || 0) + amount;
+    const habit = _state.habits.find(h => h.id === habitId);
+    if (habit?.isCounter && habit.goal) {
+      _state.completions[k] = _state.counters[k] >= habit.goal;
+    }
+    save();
+  };
+
+  /**
+   * Resta el primer quickBtn (o 1) al contador de un hábito.
+   * @param {number} habitId
+   * @param {string} dateKey — YYYY-MM-DD (local)
+   */
+  const subtractFromCounter = (habitId, dateKey) => {
+    const k = composeKey(habitId, dateKey);
+    const habit = _state.habits.find(h => h.id === habitId);
+    const step = habit?.quickBtns?.[0] ?? 1;
+    _state.counters[k] = Math.max(0, (_state.counters[k] || 0) - step);
+    if (habit?.isCounter && habit.goal) {
+      _state.completions[k] = _state.counters[k] >= habit.goal;
+    }
+    save();
+  };
+
+  // ── Notas ─────────────────────────────────────────────────────
+
+  /**
+   * Guarda o elimina la nota de un día.
+   * @param {string} dateKey — YYYY-MM-DD
+   * @param {string} text
+   */
+  const saveNote = (dateKey, text) => {
+    const trimmed = text.trim().substring(0, 500);
+    if (trimmed) _state.notes[dateKey] = trimmed;
+    else delete _state.notes[dateKey];
+    save();
+  };
+
+  // ── Analíticas ────────────────────────────────────────────────
+
+  /**
+   * Calcula la racha actual de un hábito desde hoy hacia atrás.
+   * Usa SESSION_TODAY como ancla para evitar time-skew.
+   * @param {number} habitId
+   * @returns {number}
+   */
+  const getStreak = (habitId) => {
+    let streak = 0;
+    // Empezamos desde la fecha de sesión (no new Date() disperso)
+    let cursor = DateService.fromDateKey(DateService.SESSION_TODAY);
+    while (streak < 365) {
+      const key = composeKey(habitId, DateService.toLocalDateKey(cursor));
+      if (_state.completions[key]) {
+        streak++;
+        cursor.setDate(cursor.getDate() - 1);
+      } else break;
+    }
+    return streak;
+  };
+
+  /**
+   * Porcentaje de hábitos completados en un día.
+   * @param {string} dateKey
+   * @returns {number} 0–100
+   */
+  const getDailyPercentage = (dateKey) => {
+    if (!_state.habits.length) return 0;
+    const done = _state.habits.filter(h => _state.completions[composeKey(h.id, dateKey)]).length;
+    return Math.round(done / _state.habits.length * 100);
+  };
+
+  /**
+   * Porcentaje de hábitos de una categoría completados en un día.
+   * @param {string} category
+   * @param {string} dateKey
+   * @returns {number} 0–100
+   */
+  const getCategoryPercentage = (category, dateKey) => {
+    const cats = _state.habits.filter(h => h.category === category);
+    if (!cats.length) return 0;
+    const done = cats.filter(h => _state.completions[composeKey(h.id, dateKey)]).length;
+    return Math.round(done / cats.length * 100);
+  };
+
+  /**
+   * Tasa de completado de un hábito en un rango de fechas.
+   * @param {number} habitId
+   * @param {Date} startDate
+   * @param {Date} endDate
+   * @returns {number} 0–100
+   */
+  const getCompletionRate = (habitId, startDate, endDate) => {
+    let total = 0, done = 0;
+    const cursor = new Date(startDate);
+    while (cursor <= endDate && total < 366) {
+      const key = composeKey(habitId, DateService.toLocalDateKey(cursor));
+      if (_state.completions[key]) done++;
+      total++;
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return total > 0 ? Math.round(done / total * 100) : 0;
+  };
+
+  /**
+   * Agrupa los hábitos por categoría.
+   * @returns {Record<string, Habit[]>}
+   */
+  const groupByCategory = () => {
+    return _state.habits.reduce((acc, h) => {
+      (acc[h.category] ??= []).push(h);
+      return acc;
+    }, {});
+  };
+
+  // ── Export / Import ───────────────────────────────────────────
+
+  /**
+   * Serializa el estado para exportar como JSON.
+   * @returns {string} JSON
+   */
+  const exportJSON = () => JSON.stringify({
+    habits:      _state.habits,
+    completions: _state.completions,
+    counters:    _state.counters,
+    notes:       _state.notes,
+    version:     SCHEMA_VERSION,
+    exportDate:  new Date().toISOString(),
+  }, null, 2);
+
+  /**
+   * Parsea e importa datos de un JSON exportado previamente.
+   * Lanza Error si el formato es inválido.
+   * @param {string} jsonStr
+   */
+  const importJSON = (jsonStr) => {
+    const parsed = JSON.parse(jsonStr);
+    if (!parsed.habits || !Array.isArray(parsed.habits)) {
+      throw new Error('Formato inválido: falta campo "habits"');
+    }
+    setState({
+      habits:      parsed.habits,
+      completions: parsed.completions || {},
+      counters:    parsed.counters    || {},
+      notes:       parsed.notes       || {},
+    });
+  };
+
+  return {
+    load, save, getState, setState,
+    getHabits, getCompletions, getCounters, getNotes,
+    addHabit, updateHabit, deleteHabit,
+    toggleHabit, addToCounter, subtractFromCounter,
+    saveNote,
+    getStreak, getDailyPercentage, getCategoryPercentage,
+    getCompletionRate, groupByCategory,
+    exportJSON, importJSON,
+  };
+})();
+
+
+/**
+ * ─────────────────────────────────────────────────────────────────
+ *  App — Capa de presentación / controlador de UI
+ *
+ *  Responsabilidades:
+ *    · Gestión del estado de navegación (vista actual, fecha de cursor)
+ *    · Renderizado del DOM
+ *    · Event handling
+ *    · Integración con HabitService (nunca toca localStorage directamente)
+ *
+ *  NOTA IMPORTANTE sobre fechas:
+ *    `_cursor` es un Date de NAVEGACIÓN (el usuario puede ir al pasado/futuro).
+ *    Para OPERACIONES DEL DÍA ACTUAL siempre se usa DateService.SESSION_TODAY.
+ * ─────────────────────────────────────────────────────────────────
+ */
+const App = (() => {
+  // ── Configuración de UI (no lógica de negocio) ────────────────
+  const CATEGORY_COLORS = {
+    health:'#48bb78', work:'#4299e1', learning:'#9f7aea',
+    creative:'#ed8936', personal:'#ecc94b', fitness:'#f56565',
+  };
+  const CATEGORY_NAMES = {
+    health:'Salud', work:'Trabajo', learning:'Aprendizaje',
+    creative:'Creatividad', personal:'Personal', fitness:'Ejercicio',
+  };
+
+  // ── Estado de UI ─────────────────────────────────────────────
+  let _currentView = 'daily';
+  let _cursor      = new Date(); // fecha de navegación
+  let _editingId   = null;       // id del hábito en edición
+
+  // ── DOM helpers ───────────────────────────────────────────────
+  /** @param {string} id @returns {HTMLElement} */
+  const $ = (id) => document.getElementById(id);
+  /** Escapa HTML para prevenir XSS */
+  const esc = (text) => {
+    const d = document.createElement('div');
+    d.textContent = String(text ?? '');
+    return d.innerHTML;
+  };
+
+  // ── Utilidades de fecha para UI ───────────────────────────────
+  const fmtDate = (date, options = { weekday:'long', year:'numeric', month:'long', day:'numeric' }) => {
+    try { return date.toLocaleDateString('es-ES', options); }
+    catch { return ''; }
+  };
+  const weekStart = (date) => {
+    const w = new Date(date);
+    w.setDate(w.getDate() - w.getDay());
+    return w;
+  };
+  const weekDates = (date) => {
+    const s = weekStart(date);
+    return Array.from({ length: 7 }, (_, i) => {
+      const x = new Date(s);
+      x.setDate(s.getDate() + i);
+      return x;
+    });
+  };
+
+  // ── Render principal ──────────────────────────────────────────
+  const render = () => {
+    const content = $('mainContent');
+    const display = $('dateDisplay');
+    if (!content || !display) return;
+
+    let html = '', dateText = '';
+    const wd = weekDates(_cursor);
+
+    switch (_currentView) {
+      case 'daily':
+        html     = renderDaily();
+        dateText = fmtDate(_cursor);
+        break;
+      case 'weekly':
+        html     = renderWeekly();
+        dateText = `${wd[0].getDate()} - ${wd[6].getDate()} ${fmtDate(wd[6], { month:'long', year:'numeric' })}`;
+        break;
+      case 'monthly':
+        html     = renderMonthly();
+        dateText = fmtDate(_cursor, { month:'long', year:'numeric' });
+        break;
+      case 'yearly':
+        html     = renderYearly();
+        dateText = String(_cursor.getFullYear());
+        break;
+      case 'stats':
+        html     = renderStats();
+        dateText = fmtDate(_cursor, { month:'long', year:'numeric' });
+        break;
+    }
+
+    display.textContent = dateText;
+    content.innerHTML   = html;
+  };
+
+  // ── Vistas ────────────────────────────────────────────────────
+
+  const renderDaily = () => {
+    const dk  = DateService.toLocalDateKey(_cursor);
+    const grp = HabitService.groupByCategory();
+    const pct  = HabitService.getDailyPercentage(dk);
+    const habits   = HabitService.getHabits();
+    const completions = HabitService.getCompletions();
+    const counters    = HabitService.getCounters();
+    const total = habits.length;
+    const done  = habits.filter(h => completions[`${h.id}-${dk}`]).length;
+
+    let html = `
+      <div class="daily-stats">
+        <h3>Progreso del Día</h3>
+        <div class="daily-percentage">${pct}%</div>
+        <div class="daily-count">${done} de ${total} hábitos completados</div>
+      </div>
+      <div class="daily-grid"><div>`;
+
+    Object.keys(grp).forEach(cat => {
+      const color = CATEGORY_COLORS[cat] || '#718096';
+      const name  = CATEGORY_NAMES[cat]  || cat;
+      const cpct  = HabitService.getCategoryPercentage(cat, dk);
+      html += `
+        <div class="category-section">
+          <div class="category-header" style="background:${color}">
+            <span>${name}</span><span class="category-percentage">${cpct}%</span>
+          </div>
+          <div class="habit-list">`;
+
+      grp[cat].forEach(h => {
+        const k      = `${h.id}-${dk}`;
+        const chk    = completions[k];
+        const streak = HabitService.getStreak(h.id);
+
+        if (h.isCounter && h.goal) {
+          const val  = counters[k] || 0;
+          const pct2 = Math.min(100, Math.round(val / h.goal * 100));
+          const btns = (h.quickBtns || [1]).map(b =>
+            `<button class="counter-btn" data-action="add" data-id="${h.id}" data-amt="${b}" data-dk="${dk}">+${b}</button>`
+          ).join('');
+          html += `
+            <div class="habit-row">
+              <div class="habit-checkbox ${chk ? 'checked' : ''}" data-action="toggle" data-id="${h.id}" data-dk="${dk}"></div>
+              <div class="habit-emoji" style="cursor:pointer" data-action="edit" data-id="${h.id}">${h.icon}</div>
+              <div class="counter-section">
+                <div class="habit-title" style="cursor:pointer" data-action="edit" data-id="${h.id}">${esc(h.name)}</div>
+                <div class="counter-label">${val} / ${h.goal} ${esc(h.unit || '')}</div>
+                <div class="counter-bar-wrap"><div class="counter-bar-fill" style="width:${pct2}%"></div></div>
+                <div class="counter-buttons">${btns}
+                  <button class="counter-minus" data-action="sub" data-id="${h.id}" data-dk="${dk}">−</button>
+                </div>
+                ${streak > 0 ? `<span class="habit-streak">🔥 ${streak} días</span>` : ''}
+              </div>
+            </div>`;
+        } else {
+          html += `
+            <div class="habit-row">
+              <div class="habit-checkbox ${chk ? 'checked' : ''}" data-action="toggle" data-id="${h.id}" data-dk="${dk}"></div>
+              <div style="flex:1;display:flex;align-items:center;gap:15px;cursor:pointer" data-action="edit" data-id="${h.id}">
+                <div class="habit-emoji">${h.icon}</div>
+                <div class="habit-info">
+                  <div class="habit-title">${esc(h.name)}</div>
+                  ${streak > 0 ? `<span class="habit-streak">🔥 ${streak} días</span>` : ''}
+                </div>
+              </div>
+            </div>`;
+        }
+      });
+
+      html += `</div></div>`;
+    });
+
+    const note = HabitService.getNotes()[dk] || '';
+    html += `</div>
+      <div class="note-box">
+        <h3>Nota del Día</h3>
+        <textarea class="note-textarea" id="noteText" maxlength="500" placeholder="¿Cómo estuvo tu día?">${esc(note)}</textarea>
+        <button class="save-btn" id="saveNoteBtn">Guardar Nota</button>
+      </div>
+    </div>`;
+    return html;
+  };
+
+  const renderWeekly = () => {
+    const wd   = weekDates(_cursor);
+    const habits = HabitService.getHabits();
+    const completions = HabitService.getCompletions();
+    let tot = habits.length * 7, done = 0;
+    wd.forEach(d => habits.forEach(h => {
+      if (completions[`${h.id}-${DateService.toLocalDateKey(d)}`]) done++;
+    }));
+    const pct = tot > 0 ? Math.round(done / tot * 100) : 0;
+
+    let html = `
+      <div class="weekly-stats">
+        <div class="weekly-stat-item"><div class="weekly-stat-label">Progreso Semanal</div><div class="weekly-stat-value">${pct}%</div></div>
+        <div class="weekly-stat-item"><div class="weekly-stat-label">Completados</div><div class="weekly-stat-value">${done}/${tot}</div></div>
+        <div class="weekly-stat-item"><div class="weekly-stat-label">Hábitos</div><div class="weekly-stat-value">${habits.length}</div></div>
+      </div>
+      <div class="weekly-container"><div class="weekly-grid">
+        <div class="weekly-header">Hábito</div>`;
+
+    wd.forEach(d => {
+      html += `<div class="weekly-header">
+        <div>${d.toLocaleDateString('es-ES', { weekday:'short' })}</div>
+        <div style="font-size:18px;margin-top:5px">${d.getDate()}</div>
+      </div>`;
+    });
+
+    habits.forEach(h => {
+      html += `<div class="weekly-habit-name"><span>${h.icon}</span><span>${esc(h.name)}</span></div>`;
+      wd.forEach(d => {
+        const dk  = DateService.toLocalDateKey(d);
+        const chk = completions[`${h.id}-${dk}`];
+        html += `<div class="weekly-cell" data-action="toggle" data-id="${h.id}" data-dk="${dk}">
+          <div class="weekly-checkbox ${chk ? 'checked' : ''}"></div>
+        </div>`;
+      });
+    });
+
+    html += `</div></div>`;
+    return html;
+  };
+
+  const renderMonthly = () => {
+    const yr    = _cursor.getFullYear();
+    const mo    = _cursor.getMonth();
+    const first = new Date(yr, mo, 1);
+    const last  = new Date(yr, mo + 1, 0);
+    const habits = HabitService.getHabits();
+    const completions = HabitService.getCompletions();
+
+    let totP = 0, totD = 0;
+    const cur = new Date(first);
+    while (cur <= last) {
+      const dk = DateService.toLocalDateKey(cur);
+      habits.forEach(h => {
+        totP++;
+        if (completions[`${h.id}-${dk}`]) totD++;
+      });
+      cur.setDate(cur.getDate() + 1);
+    }
+    const mpct = totP > 0 ? Math.round(totD / totP * 100) : 0;
+
+    let html = `
+      <div class="calendar-stats">
+        <div class="calendar-stat-box"><div class="calendar-stat-label">Progreso del Mes</div><div class="calendar-stat-value">${mpct}%</div></div>
+        <div class="calendar-stat-box"><div class="calendar-stat-label">Completados</div><div class="calendar-stat-value">${totD}</div></div>
+        <div class="calendar-stat-box"><div class="calendar-stat-label">Total Posible</div><div class="calendar-stat-value">${totP}</div></div>
+      </div>
+      <div class="calendar"><div class="calendar-grid">`;
+
+    ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].forEach(d => {
+      html += `<div class="calendar-header">${d}</div>`;
+    });
+
+    const start = new Date(first);
+    start.setDate(start.getDate() - start.getDay());
+
+    for (let i = 0; i < 42; i++) {
+      const isCurrentMonth = start.getMonth() === mo;
+      const dk   = DateService.toLocalDateKey(start);
+      const note = HabitService.getNotes()[dk] || '';
+      const dp   = HabitService.getDailyPercentage(dk);
+
+      html += `<div class="calendar-cell ${!isCurrentMonth ? 'other-month' : ''}">
+        <div class="cell-date">${start.getDate()}</div>`;
+
+      if (isCurrentMonth) {
+        html += `<div class="cell-percentage">${dp}% completado</div>`;
+        if (note) html += `<div class="cell-note">${esc(note)}</div>`;
+        html += `<div class="cell-habits">`;
+        habits.forEach(h => {
+          const isDone = completions[`${h.id}-${dk}`];
+          html += `<div class="mini-habit ${isDone ? 'done' : 'undone'}" data-action="toggle" data-id="${h.id}" data-dk="${dk}" title="${esc(h.name)}">${h.icon}</div>`;
+        });
+        html += `</div>`;
+      }
+      html += `</div>`;
+      start.setDate(start.getDate() + 1);
+    }
+
+    html += `</div></div>`;
+    return html;
+  };
+
+  const renderYearly = () => {
+    const yr = _cursor.getFullYear();
+    let html = `<h2 class="yearly-title">Resumen Anual ${yr}</h2><div class="stats-grid">`;
+    HabitService.getHabits().forEach(h => {
+      html += `<div class="stat-card">
+        <div class="stat-card-header"><div class="stat-emoji">${h.icon}</div><div class="stat-name">${esc(h.name)}</div></div>
+        <div class="months-grid">`;
+      for (let m = 0; m < 12; m++) {
+        const ms  = new Date(yr, m, 1);
+        const me  = new Date(yr, m + 1, 0);
+        const r   = HabitService.getCompletionRate(h.id, ms, me);
+        const mn  = ms.toLocaleDateString('es-ES', { month:'short' });
+        html += `<div class="month-box"><div class="month-name">${mn}</div><div class="month-percent">${r}%</div></div>`;
+      }
+      html += `</div></div>`;
+    });
+    html += `</div>`;
+    return html;
+  };
+
+  const renderStats = () => {
+    const ms = new Date(_cursor.getFullYear(), _cursor.getMonth(), 1);
+    const me = new Date(_cursor.getFullYear(), _cursor.getMonth() + 1, 0);
+    let html = `<div class="stats-grid">`;
+    HabitService.getHabits().forEach(h => {
+      const mr = HabitService.getCompletionRate(h.id, ms, me);
+      html += `<div class="stat-card">
+        <div class="stat-card-header"><div class="stat-emoji">${h.icon}</div><div class="stat-name">${esc(h.name)}</div></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${mr}%"></div></div>
+        <div class="progress-label">Este mes: ${mr}%</div>
+        <div class="months-grid">`;
+      for (let m = 0; m < 12; m++) {
+        const s2 = new Date(_cursor.getFullYear(), m, 1);
+        const e2 = new Date(_cursor.getFullYear(), m + 1, 0);
+        const r  = HabitService.getCompletionRate(h.id, s2, e2);
+        const mn = s2.toLocaleDateString('es-ES', { month:'short' });
+        html += `<div class="month-box"><div class="month-name">${mn}</div><div class="month-percent">${r}%</div></div>`;
+      }
+      html += `</div></div>`;
+    });
+    html += `</div>`;
+    return html;
+  };
+
+  // ── Modal ─────────────────────────────────────────────────────
+  const openModal = (id = null) => {
+    _editingId = id;
+    const isEdit = id !== null;
+    $('modalTitle').textContent = isEdit ? 'Editar Hábito' : 'Agregar Hábito';
+    $('deleteBtn').classList.toggle('hidden', !isEdit);
+
+    if (isEdit) {
+      const h = HabitService.getHabits().find(x => x.id === id);
+      if (!h) return;
+      $('habitName').value      = h.name;
+      $('habitIcon').value      = h.icon;
+      $('habitCategory').value  = h.category;
+      $('isCounter').checked    = !!h.isCounter;
+      $('counterGoal').value    = h.goal  || '';
+      $('counterUnit').value    = h.unit  || '';
+      $('counterButtons').value = (h.quickBtns || []).join(',');
+      $('counterFields').classList.toggle('hidden', !h.isCounter);
+    } else {
+      $('habitName').value      = '';
+      $('habitIcon').value      = '';
+      $('habitCategory').value  = 'health';
+      $('isCounter').checked    = false;
+      $('counterGoal').value    = '';
+      $('counterUnit').value    = '';
+      $('counterButtons').value = '';
+      $('counterFields').classList.add('hidden');
+    }
+
+    $('habitModal').classList.add('show');
+    $('habitName').focus();
+  };
+
+  const closeModal = () => {
+    $('habitModal').classList.remove('show');
+    _editingId = null;
+  };
+
+  const saveHabit = () => {
+    const name = $('habitName').value.trim();
+    if (!name) { alert('Por favor ingresa un nombre'); return; }
+
+    const isCounter = $('isCounter').checked;
+    const data = {
+      name,
+      icon:      $('habitIcon').value.trim() || '📌',
+      category:  $('habitCategory').value,
+      isCounter,
+      goal:      isCounter ? (parseFloat($('counterGoal').value) || 0) : null,
+      unit:      isCounter ? $('counterUnit').value.trim() : '',
+      quickBtns: isCounter
+        ? $('counterButtons').value.split(',').map(x => parseFloat(x.trim())).filter(x => !isNaN(x) && x > 0)
+        : [],
+    };
+
+    if (_editingId) {
+      HabitService.updateHabit(_editingId, data);
+    } else {
+      HabitService.addHabit(data);
+    }
+    closeModal();
+    render();
+  };
+
+  const deleteHabit = () => {
+    if (!confirm('¿Eliminar este hábito? No se puede deshacer.')) return;
+    HabitService.deleteHabit(_editingId);
+    closeModal();
+    render();
+  };
+
+  // ── Navegación ────────────────────────────────────────────────
+  const navigate = (direction) => {
+    const n = parseInt(direction);
+    switch (_currentView) {
+      case 'daily':   _cursor.setDate(_cursor.getDate() + n); break;
+      case 'weekly':  _cursor.setDate(_cursor.getDate() + n * 7); break;
+      case 'monthly':
+      case 'stats':   _cursor.setMonth(_cursor.getMonth() + n); break;
+      case 'yearly':  _cursor.setFullYear(_cursor.getFullYear() + n); break;
+    }
+    render();
+  };
+
+  // ── Event Delegation (evita inline handlers en HTML) ─────────
+  const handleContentClick = (e) => {
+    const el = e.target.closest('[data-action]');
+    if (!el) return;
+
+    const { action, id, dk, amt } = el.dataset;
+    const habitId = parseInt(id);
+
+    switch (action) {
+      case 'toggle':
+        HabitService.toggleHabit(habitId, dk);
+        render();
+        break;
+      case 'add':
+        HabitService.addToCounter(habitId, parseFloat(amt), dk);
+        render();
+        break;
+      case 'sub':
+        HabitService.subtractFromCounter(habitId, dk);
+        render();
+        break;
+      case 'edit':
+        openModal(habitId);
+        break;
+    }
+  };
+
+  // ── Export / Import ───────────────────────────────────────────
+  const exportData = () => {
+    try {
+      const blob = new Blob([HabitService.exportJSON()], { type:'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `evolist-backup-${DateService.SESSION_TODAY}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+    } catch (err) {
+      alert('Error al exportar: ' + err.message);
+    }
+  };
+
+  const importData = (ev) => {
+    const file = ev.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        if (!confirm('¿Importar datos? Sobrescribirá los actuales.')) return;
+        HabitService.importJSON(e.target.result);
+        render();
+        alert('Datos importados ✅');
+      } catch (err) {
+        alert('Error al importar: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+    ev.target.value = '';
+  };
+
+  // ── Init ──────────────────────────────────────────────────────
+  const init = () => {
+    HabitService.load();
+    render();
+
+    // View buttons
+    document.querySelectorAll('.view-btn[data-view]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _currentView = btn.dataset.view;
+        document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        render();
+      });
+    });
+
+    // Navigation
+    $('navPrev').addEventListener('click', () => navigate(-1));
+    $('navNext').addEventListener('click', () => navigate(1));
+    $('todayBtn').addEventListener('click', () => { _cursor = new Date(); render(); });
+
+    // FAB & Modal
+    $('addHabitFab').addEventListener('click', () => openModal());
+    $('modalCancelBtn').addEventListener('click', closeModal);
+    $('modalSaveBtn').addEventListener('click', saveHabit);
+    $('deleteBtn').addEventListener('click', deleteHabit);
+    $('isCounter').addEventListener('change', () => {
+      $('counterFields').classList.toggle('hidden', !$('isCounter').checked);
+    });
+    $('habitModal').addEventListener('click', (e) => {
+      if (e.target === $('habitModal')) closeModal();
+    });
+
+    // Content delegation
+    $('mainContent').addEventListener('click', handleContentClick);
+    // Note save (delegated desde mainContent)
+    $('mainContent').addEventListener('click', (e) => {
+      if (e.target.id === 'saveNoteBtn') {
+        const dk = DateService.toLocalDateKey(_cursor);
+        HabitService.saveNote(dk, $('noteText')?.value || '');
+        alert('Nota guardada ✅');
+      }
+    });
+
+    // Export / Import
+    $('exportBtn').addEventListener('click', exportData);
+    $('importTrigger').addEventListener('click', () => $('importInput').click());
+    $('importInput').addEventListener('change', importData);
+
+    // Sync (expuesto para el módulo Firebase)
+    $('syncBtn').addEventListener('click', () => {
+      if (typeof window.handleSync === 'function') window.handleSync();
+    });
+  };
+
+  return { init };
+})();
+
+// ── Bootstrap ─────────────────────────────────────────────────────
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', App.init);
+} else {
+  App.init();
+}
+</script>
+
+<!-- ──────────────────────────────────────────────────────────────
+     Firebase Module — Sincronización en la nube
+     Separado del core para mantener independencia.
+     
+     ⚠️  REEMPLAZA los valores "BORRADO POR SEGURIDAD" con tu config.
+     ⚠️  NUNCA expongas estas credenciales en un repositorio público.
+         Usa variables de entorno o un servidor proxy si es necesario.
+────────────────────────────────────────────────────────────────── -->
+<script type="module">
+import { initializeApp }          from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+import { getDatabase, ref, set, get } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js';
+import {
+  getAuth, sendSignInLinkToEmail,
+  isSignInWithEmailLink, signInWithEmailLink, onAuthStateChanged,
+} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+
+// 🔒 REEMPLAZA CON TU CONFIGURACIÓN REAL DE FIREBASE
+const firebaseConfig = {
+  apiKey: "AIzaSyAHVeO8eQ9REcMibZbQkkQJwCiKWr0i8pc",
+    authDomain: "evolist-f12dd.firebaseapp.com",
+    databaseURL: "https://evolist-f12dd-default-rtdb.firebaseio.com",
+    projectId: "evolist-f12dd",
+    storageBucket: "evolist-f12dd.firebasestorage.app",
+    messagingSenderId: "874381505458",
+    appId: "1:874381505458:web:560bc5fff6aa7deff42aab"
+};
+
+// Email único autorizado (valida también en Security Rules del lado servidor)
+const AUTHORIZED_EMAIL = 'izipopoar14@gmail.com';
+
+const fbApp    = initializeApp(firebaseConfig);
+const database = getDatabase(fbApp);
+const auth     = getAuth(fbApp);
+let currentUser = null;
+
+// ── Auth state ────────────────────────────────────────────────────
+onAuthStateChanged(auth, (user) => {
+  currentUser = user;
+  updateAuthStatus(user);
+});
+
+// ── Email link sign-in (callback al volver del enlace) ────────────
+if (isSignInWithEmailLink(auth, window.location.href)) {
+  let email = window.localStorage.getItem('emailForSignIn');
+  if (!email) email = window.prompt('Confirma tu email para completar el acceso:');
+  if (email) {
+    signInWithEmailLink(auth, email, window.location.href)
+      .then((result) => {
+        window.localStorage.removeItem('emailForSignIn');
+        window.history.replaceState({}, document.title, window.location.pathname);
+        updateAuthStatus(result.user);
+        alert('✅ Autenticación exitosa');
+      })
+      .catch((err) => alert('Error de autenticación: ' + err.message));
+  }
+}
+
+/** Actualiza el indicador de estado en la UI. */
+function updateAuthStatus(user) {
+  const el = document.getElementById('authStatus');
+  if (!el) return;
+  if (user) {
+    el.textContent  = `✅ ${user.email}`;
+    el.style.color  = '#48bb78';
+  } else {
+    el.textContent  = '🔓 No autenticado';
+    el.style.color  = '#c53030';
+  }
+}
+
+/**
+ * Solicita autenticación por email link.
+ * @returns {Promise<boolean>} true si ya está autenticado
+ */
+async function authenticate() {
+  if (currentUser) return true;
+
+  const email = prompt('🔐 Ingresa tu email para recibir el link de acceso:', AUTHORIZED_EMAIL);
+  if (!email) return false;
+
+  // Validación en cliente (la validación real ocurre en Security Rules)
+  if (email.toLowerCase() !== AUTHORIZED_EMAIL.toLowerCase()) {
+    alert('❌ Email no autorizado');
+    return false;
+  }
+
+  try {
+    await sendSignInLinkToEmail(auth, email, {
+      url: window.location.href,
+      handleCodeInApp: true,
+    });
+    window.localStorage.setItem('emailForSignIn', email);
+    alert(`📧 Link enviado a ${email}\nRevisá tu bandeja de entrada (puede estar en spam).`);
+  } catch (err) {
+    alert('Error al enviar link: ' + err.message);
+  }
+  return false;
+}
+
+/**
+ * Sincroniza el estado local con Firebase Realtime Database.
+ *
+ * Estrategia de merge conservadora:
+ *   - Los hábitos locales tienen prioridad si existen.
+ *   - Para completions/counters/notes: la nube prevalece para claves
+ *     que no existen en local; local prevalece para claves existentes.
+ *
+ * ⚠️  Para un merge más sofisticado (last-write-wins por timestamp),
+ *     considera migrar a Firestore con escrituras atómicas por documento.
+ */
+window.handleSync = async function () {
+  const btn = document.getElementById('syncBtn');
+  if (!currentUser) {
+    await authenticate();
+    return;
+  }
+
+  const origText = btn.textContent;
+  btn.textContent = '⏳ Sincronizando...';
+  btn.disabled    = true;
+
+  try {
+    // Leer estado local a través del servicio (no acceso directo a localStorage)
+    const local = HabitService.getState();
+
+    // Una sola lectura a Firebase
+    const snap  = await get(ref(database, `users/${currentUser.uid}/data`));
+    const cloud = snap.exists()
+      ? snap.val()
+      : { habits: [], completions: {}, counters: {}, notes: {} };
+
+    // Merge
+    const merged = {
+      habits:      local.habits.length > 0 ? local.habits : (cloud.habits || []),
+      completions: { ...cloud.completions, ...local.completions },
+      counters:    { ...cloud.counters,    ...local.counters    },
+      notes:       { ...cloud.notes,       ...local.notes       },
+      version:     3,
+      lastSynced:  new Date().toISOString(),
+    };
+
+    // Una sola escritura a Firebase (atómica para este path)
+    await set(ref(database, `users/${currentUser.uid}/data`), merged);
+
+    // Actualizar estado local via HabitService
+    HabitService.setState(merged);
+
+    btn.textContent = '✅ Sincronizado';
+    setTimeout(() => {
+      btn.textContent = origText;
+      btn.disabled    = false;
+      window.location.reload();
+    }, 1500);
+
+  } catch (err) {
+    console.error('[Sync] Error:', err);
+    btn.textContent = '❌ Error';
+    setTimeout(() => {
+      btn.textContent = origText;
+      btn.disabled    = false;
+    }, 2000);
+    alert('Error de sincronización: ' + err.message);
+  }
+};
+</script>
+</body>
+</html>
